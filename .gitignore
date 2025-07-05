@@ -6,6 +6,9 @@
 **/.venv
 
 
+tokens.json
+
+
 __pycache__
 **/__pycache__
 
