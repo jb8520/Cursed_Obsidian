@@ -1,0 +1,4 @@
+discord.py==2.5.2
+mysql-connector==2.2.9
+python-dotenv==1.1.0
+xbox-webapi==2.1.0
