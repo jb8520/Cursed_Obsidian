@@ -83,8 +83,8 @@ Add the following IDs to `Configuration/values.json` (replace the placeholder of
 
 
 Decide on what roles you would like to be in which permission tier:
-- Tier 0 represents what everyone can do
-- Tier 1 restricts *base staff commands*
+- Tier 0 represents what everyone can do.
+- Tier 1 restricts *base staff commands*.
 - Tier 2, 3 and 4 follow in this pattern, the higher the number, the more control over the features of the bot is available.
 
 Suggestions for both role names and tier layout is presented in `Configuration/values.json`, however this is fully customisable.
@@ -104,7 +104,7 @@ If you wish to customise the text the bot uses (such as in embeds or channel nam
     - queue_description
 - `Configuration/preset_text.py`
 
-The position of each category and its channel's permissions can also be changed. These options are also found in `Configuration/preset_text.py`.
+The position of each category can also be changed. This can be done in `Configuration/preset_text.py`.
 
 
 If you are using the banlist/xbox checker integration, please also create a *linked xbox role* in your server and add its ID to the `"xbox_linked"` role in `Configuration/values.json`.
@@ -117,6 +117,7 @@ If you need additional help please contact the original developer jb8520 either 
 ## Xbox API Setup Guide
 
 **Step 1:**
+Create Azure AD app:
 1. Go to https://portal.azure.com/
 2. Create a new Azure AD app (Search "App registrations")
 3. Register it with:
@@ -151,7 +152,7 @@ python main.py
 ## Commands
 
 > Format is:
-> - **`/command_name`** (Permissions to use the command): description of the command.
+> - **`/command_name`** (`Permissions to use the command`): description of the command.
 
 ### Slash Commands
 

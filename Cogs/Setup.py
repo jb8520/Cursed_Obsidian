@@ -167,6 +167,18 @@ class Setup(Cog):
         
         
         # === Channels ===
+        logs_overwrites = {
+
+        }
+
+        fleet_staff_overwrites = {
+
+        }
+
+        fleet_queue_overwrites = {
+
+        }
+
         required_channels = {
             ('logs', 'bot'): (bot_logs_name, 'text', logs_overwrites),
             ('logs', 'queue'): (queue_logs_name, 'text', logs_overwrites),
