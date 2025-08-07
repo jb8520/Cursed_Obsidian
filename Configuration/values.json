@@ -10,10 +10,9 @@
     "senior_mod": 0,
     "mod": 0,
     "officer": 0,
-    "helper": 0,
-    "in_queue": 0,
-    "on_duty": 0,
-    "staff_verified": 0,
+    "in_queue": 1403128946576461885,
+    "on_duty": 1403128947394351216,
+    "staff_verified": 1403128948493123744,
     "xbox_linked": 0
   },
   "perm_roles": {
@@ -35,34 +34,34 @@
     ]
   },
   "categories": {
-    "logs": 0,
-    "fleet_staff": 0,
-    "fleet_queue": 0
+    "logs": 1403128949709475850,
+    "fleet_staff": 1403128950875488328,
+    "fleet_queue": 1403128951710421145
   },
   "channels": {
     "logs": {
-      "bot": 0,
-      "queue": 0,
-      "banlist": 0
+      "bot": 1403128953392201729,
+      "queue": 1403128954625462315,
+      "banlist": 1403128956240134287
     },
     "fleet_staff": {
-      "queue_manager": 0,
-      "spiking_queue": 0,
-      "on_duty_chat": 0
+      "queue_manager": 1403128957716660305,
+      "spiking_queue": 1403128958685282366,
+      "on_duty_chat": 1403128959641849916
     },
     "fleet_queue": {
-      "queue": 0,
-      "spiking_vc": 0,
-      "waiting_room": 0
+      "queue": 1403128960862257343,
+      "spiking_vc": 1403128962619543572,
+      "waiting_room": 1403128964213637290
     }
   },
   "embeds": {
-    "staff_queue_controls": 0,
-    "duty_switch_panel": 0,
-    "active_ships_panel": 0,
-    "queue_panel": 0,
-    "spiking_vc_control": 0,
-    "spiking_queue_panel": 0
+    "staff_queue_controls": 1403128966172250162,
+    "duty_switch_panel": 1403128968504147998,
+    "active_ships_panel": 1403128970358161408,
+    "queue_panel": 1403128972157517824,
+    "spiking_vc_control": 1403128974095421442,
+    "spiking_queue_panel": 1403128976989356083
   },
   "preset_messages": {
     "queue_title": "__**Cursed Obsidian Queue:**__",

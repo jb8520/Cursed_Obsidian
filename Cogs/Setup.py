@@ -209,7 +209,6 @@ class Setup(Cog):
                             )
                         
                         setattr(ns, key, channel.id)
-                        print(self.config.channels.logs.bot)
 
                     except Exception as e:
                         failed_attrs.append(channel_name)
