@@ -1,134 +1,360 @@
-import discord,Configuration,Functions
-import Cogs.General,Cogs.Roles,Views.Queue,Views.Channel_Control
-from discord import app_commands
-from discord.ext import commands
-class Setup_Commands(commands.Cog):
-    def __init__(self,bot):
-        self.bot=bot
-        self.Active_Fleets=bot.Active_Fleets
-        self.Fleet_Vc_1=bot.Fleet_Vc_1
-        self.Fleet_Vc_2=bot.Fleet_Vc_2
-        self.Fleet_Vc_3=bot.Fleet_Vc_3
-        self.Fleet_Vc_4=bot.Fleet_Vc_4
-        self.Fleet_Vc_5=bot.Fleet_Vc_5
-        self.Fleet_Vc_6=bot.Fleet_Vc_6
-    @commands.group(invoke_without_command=True,aliases=["s"],case_insensitive=True)
-    @commands.has_any_role("Admin","Development Lead")
-    async def Embed_Setup(self,ctx):
-        await ctx.message.delete(delay=0.5)
-        await ctx.author.send("The setup command syntax is: !Embed_Setup <Embed>")
-    @Embed_Setup.command(name="inactive")
-    @commands.has_any_role("Admin","Development Lead")
-    async def inactive(self,ctx):
-        await ctx.message.delete(delay=0.5)
-        await ctx.guild.get_channel(Configuration.Inactive_Staff[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(title="Inactive Staff Role Selection",description=f"Apply for <@{Configuration.Inactive_Staff_Role[Functions.Configuration_Position(ctx.guild.id)]}> role by using the green button below.\nIf you want to rejoin staff in the future, you will need to open a ticket in <#935566068762681394>\n\n**Staff members who are inactive for more than 30 days will automatically be given this role.**\n\n__**Current Inactive Staff Members:**__\n",color=0x00F3FF),view=Cogs.Roles.InactiveStaff())
-    @Embed_Setup.command(name="queue-manager")
-    @commands.has_any_role("Admin","Development Lead")
-    async def queue_manager(self,ctx):
-        await ctx.message.delete(delay=0.5)
-        await ctx.guild.get_channel(Configuration.Fleet_Manager[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(title="Staff Queue Buttons",description="Use the Buttons below to control the queue",color=0x00F3FF),view=Views.Queue.StaffQueueButtons())
-        await ctx.guild.get_channel(Configuration.Fleet_Manager[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(title="Duty Switch Configurationuration Panel",description=f"Get or Drop <@{Configuration.On_Duty_Role[Functions.Configuration_Position(ctx.guild.id)]}> role by using the buttons below.\n\n__**Current On-Duty Members:**__\n",color=0x00F3FF),view=Cogs.Roles.DutySwitchButtons())
-    @Embed_Setup.command(name="queue")
-    @commands.has_any_role("Admin","Development Lead")
-    async def queue(self,ctx):
-        await ctx.message.delete(delay=0.5)
-        try:
-            Description=""
-            Message=""
-            On_Duty_Role=ctx.guild.get_role(Configuration.On_Duty_Role[Functions.Configuration_Position(ctx.guild.id)])
-            Index=0
-            for Staff_Member in On_Duty_Role.members:
-                Index+=1
-                Message+=f"{Index}. {Staff_Member.mention}\n"
-            if Message=="":
-                Message="There are currently no Staff Members On Duty\n"
-            Description+=f"__**On Duty Staff:**__\n{Message}"
-            Message=""
-            for Fleet in self.Active_Fleets:
-                Position=self.Active_Fleets.index(Fleet)
-                Fleet_Ships=[ctx.guild.get_channel(self.Fleet_Vc_1[Functions.Configuration_Position(ctx.guild.id)][Position]),ctx.guild.get_channel(self.Fleet_Vc_2[Functions.Configuration_Position(ctx.guild.id)][Position]),ctx.guild.get_channel(self.Fleet_Vc_3[Functions.Configuration_Position(ctx.guild.id)][Position]),ctx.guild.get_channel(self.Fleet_Vc_4[Functions.Configuration_Position(ctx.guild.id)][Position]),ctx.guild.get_channel(self.Fleet_Vc_5[Functions.Configuration_Position(ctx.guild.id)][Position]),ctx.guild.get_channel(self.Fleet_Vc_6[Functions.Configuration_Position(ctx.guild.id)][Position])]
-                Message+=f"\n\n**Fleet {Fleet}:**"
-                Current_Message=Message
-                for Ship in Fleet_Ships:
-                    Require_Crew=""
-                    if "[CLOSED]" not in Ship.name:
-                        Emoji=""
-                        if Ship.user_limit==4:
-                            Emoji="<:ship_Galleon:944298920215986236>"
-                        if Ship.user_limit==3:
-                            Emoji="<:ship_Brigantine:944298920417321030>"
-                        if Ship.user_limit==2:
-                            Emoji="<:ship_Sloop:944298920081780799>"
-                        if len(Ship.members)<Ship.user_limit:
-                            Require_Crew=f" |  Needs {Ship.user_limit-len(Ship.members)}"
-                        Name=Ship.name
-                        if "[" and "]" in Name:
-                            Position=Name.index("]")
-                            Name=Name[Position+2:]
-                        Message+=f"\n{Emoji} {Name}{Require_Crew}"
-                if Message==Current_Message:
-                    Message=Message.replace(f"\n\n**Fleet {Fleet}:**","")
-            if Message=="":
-                Message="\nThere are currently no active ships"
-            Description+=f"\n__**Active Fleet Ships:**__{Message}"
-            Active_Ships_Embed=await ctx.guild.get_channel(Configuration.Join_Queue[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(description=Description,colour=0x00F3FF))
-        except:
-            Active_Ships_Embed=await ctx.guild.get_channel(Configuration.Join_Queue[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(description="Description",colour=0x00F3FF))
-        Queue_Embed=await ctx.guild.get_channel(Configuration.Join_Queue[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(title=Configuration.Queue_Title,description=Configuration.Queue_Description,color=0x00F3FF),view=Views.Queue.OpenQueueButtons())
-        Configuration_File=open("Cursed_Obsidian/Configuration.py")
-        Contents=Configuration_File.readlines()
-        Length=len(Contents)
-        Configuration_File.close()
-        Line=Contents[Length-3]
-        Id_List=Line.replace("Queue_Embed=","").replace("[","").replace("]","").split(",")
-        Id_List[Functions.Configuration_Position(ctx.guild.id)]=Queue_Embed.id
-        New_List=[]
-        for Id in Id_List:
-            New_List.append(int(Id))
-        Contents[Length-3]=f"Queue_Embed={New_List}\n"
-        Line=Contents[Length-2]
-        Id_List=Line.replace("Active_Ships_Embed=","").replace("[","").replace("]","").split(",")
-        Id_List[Functions.Configuration_Position(ctx.guild.id)]=Active_Ships_Embed.id
-        New_List=[]
-        for Id in Id_List:
-            New_List.append(int(Id))
-        Contents[Length-2]=f"Active_Ships_Embed={New_List}\n"
-        Contents="".join(Contents)
-        Configuration_File=open("Cursed_Obsidian/Configuration.py","w",encoding='utf-8')
-        Configuration_File.write(Contents)
-        Configuration_File.close()
-    @Embed_Setup.command(name="spiking-manager")
-    @commands.has_any_role("Admin","Development Lead")
-    async def spiking_manager(self,ctx):
-        await ctx.message.delete(delay=0.5)
-        Spiking_Vc=ctx.guild.get_channel(Configuration.Spiking_Vc[Functions.Configuration_Position(ctx.guild.id)])
-        Member_Role=ctx.guild.get_role(Configuration.Member_Role[Functions.Configuration_Position(ctx.guild.id)])
-        Permissions=Spiking_Vc.overwrites_for(Member_Role)
-        if Permissions.view_channel==True:
-            Emoji="🔓"
-        elif Permissions.view_channel==False:
-            Emoji="🔒"
-        await ctx.guild.get_channel(Configuration.Spiking_Queue[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(title="Spiking Vc",description=f"The Spiking Vc is currently: {Emoji}",colour=0x00F3FF),view=Views.Channel_Control.Spiking_Control_Button())
-        Spiking_Embed=await ctx.guild.get_channel(Configuration.Spiking_Queue[Functions.Configuration_Position(ctx.guild.id)]).send(embed=discord.Embed(title="Spiking Queue",description=f"Join {ctx.get_channel((Configuration.Spiking_Vc)[Functions.Configuration_Position(ctx.guild.id)]).mention} to join this Queue.\n\n**Capacity: 0 / 99**",color=0x00F3FF))
-        Configuration_File=open("Cursed_Obsidian/Configuration.py")
-        Contents=Configuration_File.readlines()
-        Length=len(Contents)
-        Configuration_File.close()
-        Line=Contents[Length-1]
-        Id_List=Line.replace("Spiking_Embed=","").replace("[","").replace("]","").split(",")
-        Id_List[Functions.Configuration_Position(ctx.guild.id)]=Spiking_Embed.id
-        New_List=[]
-        for Id in Id_List:
-            New_List.append(int(Id))
-        Contents[Length-1]=f"Spiking_Embed={New_List}\n"
-        Contents="".join(Contents)
-        Configuration_File=open("Cursed_Obsidian/Configuration.py","w",encoding='utf-8')
-        Configuration_File.write(Contents)
-        Configuration_File.close()
-    async def cog_command_error(self,ctx,error):
-        if isinstance(error,app_commands.errors.MissingAnyRole):
-            await ctx.author.send("❌ Only Admins can invoke that command!",ephemeral=True)
-        else:
-            print(error)
-async def setup(bot):
-    await bot.add_cog(Setup_Commands(bot))
+import traceback
+from datetime import datetime
+from discord.ext.commands import Cog
+from discord.app_commands import command
+from discord import Interaction
+
+from discord import TextChannel, Guild
+from Utils.embed_functions import create_embed
+from Utils.command_decorators import app_command_requires_role_of_perm_tiers
+
+from typing import Literal, Optional
+
+from Configuration import *
+
+from Views import (
+    ConfirmView,
+    SpikingControlButton,
+    OpenQueueButtons,
+    StaffQueueButtons,
+    DutySwitchButtons
+)
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from main import MyBot # Only imported for type hints
+
+
+
+class Setup(Cog):
+    def __init__(self, bot: 'MyBot'):
+        self.bot = bot
+        self.state = bot.state
+        self.config = bot.config
+        self.fleet_state = bot.state.Fleet_State
+        self.queue_state = bot.state.Queue_State
+
+    async def _check_discord_obj_valid(
+        self,
+        guild: Guild,
+        obj_type: Literal['role', 'channel', 'message'],
+        ns,
+        name: str,
+        channel: Optional[TextChannel] = None
+    ) -> bool:
+        if obj_type == 'message' and not channel:
+            raise TypeError(
+                '❌ Expected a channel object to be passed for message checks, but one was not supplied'
+            )
+        
+        if hasattr(ns, name):
+            funcs = {
+                'role': guild.get_role,
+                'channel': guild.get_channel
+            }
+
+            if channel:
+                funcs['message'] = channel.fetch_message
+
+
+            func = funcs[obj_type]
+
+            try:
+                id = getattr(ns, name)
+                if obj_type == 'message':
+                    return bool(await func(id))
+                
+                else:
+                    return (bool(func(id)))
+            
+            except:
+                return False
+            
+        return False
+            
+
+    @command(name = 'setup-all', description = 'Creates or recreates/fixes all the infrastructure the bot needs to function.')
+    @app_command_requires_role_of_perm_tiers(['tier_4'])
+    async def setup_all(self, interaction: Interaction):
+        if not interaction.guild:
+            await interaction.response.send_message('❌ This command can only be run in a server', ephemeral = True)
+            return
+        
+        embed = create_embed(
+            title = 'Setup Confirmation',
+            description = 'On confirmation, the bot will create or recreate/fix the infrastructure it needs to operate. This is detailed as per below.\n\n## Channels\n### Logs:\n> banlist\n> queue\n> bot\n### Fleet Staff\n> queue_manager\n> spiking_queue\n> on_duty_chat\n### Fleet Queue\n> queue\n> spiking vc\n> waiting room\n\n## Roles\n> in_queue\n> on_duty\n> staff_verified',
+            colour = 0x00F3FF,
+        )
+
+        view = ConfirmView(
+            bot = self.bot,
+            confirm_message = 'Setup Confirmed',
+            cancel_message = 'Setup Cancelled'
+        )
+
+        await interaction.response.send_message(embed = embed, view = view)
+
+        await view.wait()
+        if not view.confirmed:
+            return
+        
+
+        created_items = []
+        failed_attrs = []
+
+        guild = interaction.guild
+
+
+        # === Roles ===
+        required_roles = {
+            'in_queue': in_queue_name,
+            'on_duty': on_duty_name,
+            'staff_verified': staff_verified_name,
+        }
+
+        for key, role_name in required_roles.items():
+            if not await self._check_discord_obj_valid(
+                guild = guild,
+                obj_type = 'role',
+                ns = self.config.roles,
+                name = key
+            ):
+                
+                try:
+                    role = await guild.create_role(
+                        name = role_name
+                    )
+                    setattr(self.config.roles, key, role.id)
+                
+                except Exception as e:
+                    failed_attrs.append(role_name)
+                    print(f'[Setup Error] Failed to create {role_name}: {e}')
+                    traceback.print_exc()
+                
+                else:
+                    created_items.append(f'Created role `{role_name}: id = {role.id}')
+
+
+        # === Categories ===
+        required_categories = {
+            'logs': (logs_category_name, logs_category_position),
+            'fleet_staff': (fleet_staff_category_name, fleet_staff_category_position),
+            'fleet_queue': (fleet_queue_category_name, fleet_queue_category_position)
+        }
+
+        for key, (category_name, category_position) in required_categories.items():
+            if not await self._check_discord_obj_valid(
+                guild = guild,
+                obj_type = 'channel',
+                ns = self.config.categories,
+                name = key
+            ):
+                try:
+                    category = await guild.create_category(
+                        name = category_name,
+                        position = category_position
+                    )
+
+                    setattr(self.config.categories, key, category.id)
+
+                except Exception as e:
+                    failed_attrs.append(category_name)
+                    print(f'[Setup Error] Failed to create {category_name}: {e}')
+                    traceback.print_exc()
+                
+                else:
+                    created_items.append(f'Created category `{category_name}: id = {category.id}')
+        
+        
+        # === Channels ===
+        required_channels = {
+            ('logs', 'bot'): (bot_logs_name, 'text', logs_overwrites),
+            ('logs', 'queue'): (queue_logs_name, 'text', logs_overwrites),
+            ('logs', 'banlist'): (banlist_logs_name, 'text', logs_overwrites),
+
+            ('fleet_staff', 'queue_manager'): (fs_queue_manager_name, 'text', fleet_staff_overwrites),
+            ('fleet_staff', 'spiking_queue'): (fs_spiking_queue_name, 'text', fleet_staff_overwrites),
+            ('fleet_staff', 'on_duty_chat'): (fs_on_duty_chat_name, 'text', fleet_staff_overwrites),
+
+            ('fleet_queue', 'queue'): (fq_queue_name, 'text', fleet_queue_overwrites),
+            ('fleet_queue', 'spiking_vc'): (fq_spiking_vc_name, 'voice', fleet_queue_overwrites),
+            ('fleet_queue', 'waiting_room'): (fq_waiting_room_name, 'voice', fleet_queue_overwrites)
+        }
+
+        for (category_name, key), (channel_name, type_, overwrites) in required_channels.items():
+            category_id = getattr(self.config.categories, category_name, None)
+            category = guild.get_channel(category_id) if category_id else None
+            if category:
+                ns = getattr(self.config.channels, category_name)
+                
+                if not await self._check_discord_obj_valid(
+                    guild = guild,
+                    obj_type = 'channel',
+                    ns = ns,
+                    name = key
+                ):
+                    try:
+                        if type_ == 'text':
+                            channel = await guild.create_text_channel(
+                                name = channel_name,
+                                category = category,
+                                overwrites = overwrites
+                            )
+                        
+                        elif type_ == 'voice':
+                            channel = await guild.create_voice_channel(
+                                name = channel_name,
+                                category = category,
+                                overwrites = overwrites
+                            )
+                        
+                        setattr(ns, key, channel.id)
+                        print(self.config.channels.logs.bot)
+
+                    except Exception as e:
+                        failed_attrs.append(channel_name)
+                        print(f'[Setup Error] Failed to create {channel_name}: {e}')
+                        traceback.print_exc()
+
+                    else:
+                        created_items.append(f'Created channel `{channel_name}: id = {channel.id}')
+
+        
+        # === Embeds ===
+        on_duty_role = guild.get_role(self.config.roles.on_duty)
+        queue = guild.get_channel(self.config.channels.fleet_queue.queue)
+        queue_manager = guild.get_channel(self.config.channels.fleet_staff.queue_manager)
+        spiking_queue = guild.get_channel(self.config.channels.fleet_staff.spiking_queue)
+        spiking_vc = guild.get_channel(self.config.channels.fleet_queue.spiking_vc)
+
+        embed_defs = [
+            {
+                'name': 'staff_queue_controls',
+                'channel': queue_manager,
+                'embed': create_embed(
+                    title = 'Staff Queue Buttons',
+                    description = 'Use the Buttons below to control the queue',
+                    color = 0x00F3FF
+                ),
+
+                'view': StaffQueueButtons(self.bot)
+            },
+
+            {
+                'name': 'duty_switch_panel',
+                'channel': queue_manager,
+                'embed': create_embed(
+                    title = 'Duty Switch Configuration Panel',
+                    description = f'Get or Drop {on_duty_role.mention} role by using the buttons below.\n\n__**Current On-Duty Members:**__\n',
+                    color = 0x00F3FF
+                ),
+
+                'view': DutySwitchButtons(self.bot)
+            },
+
+            {
+                'name': 'active_ships_panel',
+                'channel': queue,
+                'embed': create_embed(
+                    description = '__**On Duty Staff:**__\nThere are currently no Staff Members On Duty\n\n__**Active Fleet Ships:**__\nThere are currently no active ships',
+                    color = 0x00F3FF
+                ),
+
+                'view': None
+            },
+
+            {
+                'name': 'queue_panel',
+                'channel': queue,
+                'embed': create_embed(
+                    title = self.config.preset_messages.queue_title,
+                    description = self.config.preset_messages.queue_description,
+                    color = 0x00F3FF
+                ),
+
+                'view': OpenQueueButtons(self.bot)
+            },
+
+            {
+                'name': 'spiking_vc_control',
+                'channel': spiking_queue,
+                'embed': create_embed(
+                    title = 'Spiking Vc',
+                    description = 'The Spiking Vc is currently: 🔒',
+                    color = 0x00F3FF
+                ),
+
+                'view': SpikingControlButton(self.bot)
+            },
+
+            {
+                'name': 'spiking_queue_panel',
+                'channel': spiking_queue,
+                'embed': create_embed(
+                    title = 'Spiking Queue',
+                    description = f'Join {spiking_vc.mention} to join this Queue.\n\n**Capacity: 0 / 99**',
+                    color = 0x00F3FF
+                ),
+
+                'view': None
+            }
+        ]
+        
+        for embed_def in embed_defs:
+            name = embed_def['name']
+            channel = embed_def['channel']
+            embed = embed_def['embed']
+            view = embed_def['view']
+
+            if not await self._check_discord_obj_valid(
+                guild = guild,
+                obj_type = 'message',
+                ns = self.config.embeds,
+                name = name,
+                channel = channel
+            ):
+                try:
+                    sent_embed = await channel.send(embed = embed, view = view)
+                    setattr(self.config.embeds, name, sent_embed.id)
+                
+                except Exception as e:
+                    failed_attrs.append(name)
+                    print(f'[Setup Error] Failed to create {name}: {e}')
+                    traceback.print_exc()
+
+                else:
+                    created_items.append(f'🟢 Sent `{name}` embed: id = {sent_embed.id}')
+        
+
+        if not created_items and not failed_attrs:
+            await interaction.edit_original_response(
+                content = '⚠️ There was nothing to create! The bot should already be correctly setup.',
+                embed = None
+            )
+
+            return
+        
+        self.queue_state.queue_open = True
+
+        self.config.update()
+
+
+        log_message = f'{interaction.user.mention} used the setup command'
+
+        if failed_attrs:
+            log_message += '\n\n❌ The following attrs failed to be created:\n'
+            for attr in failed_attrs:
+                log_message += f'{attr}\n'
+
+        log_channel = interaction.guild.get_channel(self.config.channels.logs.bot)
+
+        embed = create_embed(
+            description = log_message,
+            timestamp = datetime.now()
+        )
+
+        await log_channel.send(embed = embed)
+
+
+async def setup(bot: 'MyBot'):
+    await bot.add_cog(Setup(bot))

@@ -1,0 +1,16 @@
+{
+    "Fleet_State": {
+        "active_fleet": false,
+        "fleet_categories": {},
+        "fleet_controls": {},
+        "fleet_chats": {},
+        "fleet_roles": {},
+        "fleet_vcs": {}
+    },
+    "Queue_State": {
+        "queue_open": true,
+        "queue_list": [],
+        "activity_list": [],
+        "timestamp_list": []
+    }
+}

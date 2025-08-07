@@ -1,248 +1,447 @@
-import discord,os,Configuration,Functions,mysql.connector
-from discord import app_commands
-from discord.ext import commands
+from discord.ext.commands import Cog
+from discord.app_commands import command
+from discord import Guild, User, Member, Interaction, errors, Embed
 
-from xbox.webapi.api.client import XboxLiveClient
-from xbox.webapi.authentication.manager import AuthenticationManager
-from xbox.webapi.authentication.models import OAuth2TokenResponse
-from xbox.webapi.common.signed_session import SignedSession
-from xbox.webapi.scripts import CLIENT_ID as Client_Id,CLIENT_SECRET as Client_Secret
+from xbox.webapi.api.provider.profile.models import ProfileResponse
+from xbox.webapi.api.provider.people.models import PeopleResponse
 
-from dotenv import load_dotenv
-load_dotenv()
+from Utils.embed_functions import create_embed, set_embed_attr
+from Utils.command_decorators import app_command_requires_role_of_perm_tiers
 
-class Friends_Check_Confirm(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        self.value=None
-    @discord.ui.button(label="Verify",style=discord.ButtonStyle.green)
-    async def confirm(self,interaction:discord.Interaction,button:discord.ui.Button):
-        await interaction.response.edit_message(content="Verification Granted",view=None)
-        self.value=True
-        self.stop()
-    @discord.ui.button(label="Reject",style=discord.ButtonStyle.red)
-    async def cancel(self,interaction:discord.Interaction,button:discord.ui.Button):
-        await interaction.response.edit_message(content="Verification Denied",view=None)
-        self.value=False
-        self.stop()
-class BanList(commands.Cog):
-    def __init__(self,bot):
-        self.bot=bot
-    def DataBase_Connection(self):
-        return mysql.connector.connect(host=os.environ["DATABASE_HOST"],user=os.environ["DATABASE_USER"],password=os.environ["DATABASE_PASSWORD"],database=os.environ["DATABASE_NAME"])
-    @app_commands.command(name="user-check",description="Staff Only | Checks a user against the banlist")
-    @app_commands.checks.has_any_role('Staff')
-    async def check(self,interaction:discord.Interaction,user:discord.User=None,xbox:str=None):
-        Staff_Verified_Role=interaction.guild.get_role(Configuration.Staff_Verified_Role[Functions.Configuration_Position(interaction.guild.id)])
-        await interaction.response.defer(ephemeral=True)
-        DataBase=self.DataBase_Connection()
-        Cursor=DataBase.cursor()
-        Friends_Check=False
-        Colour=0x02ff00
-        Embeds=[]
-        Arguments=""
-        Message=""
-        if user is not None or xbox is not None:
-            if user is not None:
-                Arguments+=f"Discord User: {user.mention}\n"
-                Cursor.execute(f"SELECT * FROM banlist WHERE discord_id='{user.id}'")
-                Discord_Fetch=Cursor.fetchall()
-                if Discord_Fetch==[]:
-                    Message+=f"✅ {user.mention} is not on the banlist\n"
-                else:
-                    Message+=f"❌ {user.mention} is on the banlist\n"
-                    for Ban in Discord_Fetch:
-                        Data=[]
-                        for i in Ban:
-                            Data.append(i)
-                        Message+=f"Case Id: {Data[4]}\n"
-                    Colour=0xff0000
-            if xbox is not None:
-                Arguments+=f"Xbox Gamertag: {xbox}"
-                Xbox_Query=xbox.replace("'","")
-                Cursor.execute(f"SELECT * FROM banlist WHERE xbox_name='{Xbox_Query}'")
-                Xbox_Fetch=Cursor.fetchall()
-                if Xbox_Fetch==[]:
-                    Message+=f"✅ {xbox} is not on the banlist"
-                else:
-                    Message+=f"❌ {xbox} is on the banlist\n"
-                    for Ban in Xbox_Fetch:
-                        Data=[]
-                        for i in Ban:
-                            Data.append(i)  
-                        Message+=f"Case Id: {Data[4]}\n"
-                    Colour=0xff0000
-                async with SignedSession() as Session:
-                    Authentication_Manager=AuthenticationManager(Session,Client_Id,Client_Secret,"")
-                    with open("tokens.json") as Token_File:
-                        Tokens=Token_File.read()
-                    Authentication_Manager.oauth=OAuth2TokenResponse.parse_raw(Tokens)
-                    try:
-                        await Authentication_Manager.refresh_tokens()
-                    except:
-                        print(f"Could not refresh tokens\nYou might have to delete the tokens file and re-authenticate if refresh token is expired")
-                        return
-                    with open("tokens.json",mode="w") as Token_File:
-                        Token_File.write(Authentication_Manager.oauth.json())
-                    try:
-                        Xbox_Client=XboxLiveClient(Authentication_Manager)
-                        Xbox_User=await Xbox_Client.profile.get_profile_by_gamertag(xbox)
-                        Xuid=Xbox_User.profile_users[0].id
-                    except:
-                        Count=-1
-                    try:
-                        Friend_list=await Xbox_Client.people.get_friends_by_xuid(Xuid)
-                    except:
-                        Count=-2
-                    else:
-                        Friends=[]
-                        for Friend in Friend_list.people:
-                            Friends.append(Friend.modern_gamertag)
-                        Count=0
-                        Xbox_Friends_Message=""
-                        for Xbox_Gamertag in Friends:
-                            Xbox_Query=str(Xbox_Gamertag).replace("'","")
-                            Cursor.execute(f"SELECT * FROM banlist WHERE xbox_name='{Xbox_Query}'")
-                            Xbox_Fetch=Cursor.fetchall()
-                            if Xbox_Fetch!=[]:
-                                Count+=1
-                                Xbox_Friends_Message+=f"❌ {Xbox_Gamertag} is on the banlist\n"
-                                for Ban in Xbox_Fetch:
-                                    Data=[]
-                                    for i in Ban:
-                                        Data.append(i)  
-                                    Xbox_Friends_Message+=f"Case Id: {Data[4]}\n"
-                await Session.close()
-                if Count==-2:
-                    Embeds.append(discord.Embed(title=f"Xbox Friends Check",description=f"❌ {xbox} has their xbox friends hidden",colour=0x00F3FF))
-                elif Count==-1:
-                    Embeds.append(discord.Embed(title=f"Xbox Friends Check",description=f"❌ {xbox} is not a valid xbox gamertag or they have their profile private.",color=0x00F3FF))
-                elif Count==0:
-                    Embeds.append(discord.Embed(title=f"Xbox Friends Check",description=f"✅ {xbox} has no banned xbox friends",colour=0x02ff00))
-                    Friends_Check=True
-                else:
-                    Embeds.append(discord.Embed(title=f"Xbox Friends Check",description=f"{Count} of {xbox}'s friends are on the banlist\n{Xbox_Friends_Message}",colour=0xff0000))
-            Cursor.close()
-            DataBase.close()
-            Embeds.insert(0,discord.Embed(title="Banlist Check",description=f"{Message}",colour=Colour))       
-        if len(Embeds)==0:
-            await interaction.followup.send("❌ You need to provide at least one account: xbox or discord")
+
+from Utils.database_helpers import *
+
+from Utils import DatabaseConnectionFail, XboxApiWrapperError
+
+from Views import VerifyView
+
+from typing import Literal, Dict, Tuple
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from main import MyBot # Only imported for type hints
+
+
+
+class BanlistLogger:
+    @staticmethod
+    async def _log_banlist_check(guild: Guild, banlist_log_id: int, user: User, args, failed: bool = False):
+        banlist_log = guild.get_channel(banlist_log_id)
+
+
+        embed = create_embed(
+            description = f'**Staff Member:** {user.mention}\n**Used Command:** `user-check` for:\n{args}'
+        )
+
+        if failed:
+            embed.description += '\n\n❌ However, an error occurred!'
+        
+        await banlist_log.send(embed = embed)
+
+    @staticmethod
+    async def _log_banlist_case(guild: Guild, banlist_log_id: int, user: User, case: int, failed: bool = False):
+        banlist_log = guild.get_channel(banlist_log_id)
+
+        embed = create_embed(
+            description = f'**Staff Member:** {user.mention}\n**Used Command:** `banlist-case` for case {case}'
+        )
+
+        if failed:
+            embed.description += '\n\n❌ However, an error occurred!'
+        
+        await banlist_log.send(embed = embed)
+    
+    @staticmethod
+    async def _log_banlist_add(guild: Guild, banlist_log_id: int, user: User, args, failed: bool = False):
+        banlist_log = guild.get_channel(banlist_log_id)
+
+        embed = create_embed(
+            description = f'**Staff Member:** {user.mention}\n**Used Command:** `banlist-add` for:\n{args}'
+        )
+
+        if failed:
+            embed.description += '\n\n❌ However, an error occurred!'
+
+        await banlist_log.send(embed = embed)
+    
+    @staticmethod
+    async def _log_banlist_delete(guild: Guild, banlist_log_id: int, user: User, case: int, failed: bool = False):
+        banlist_log = guild.get_channel(banlist_log_id)
+
+        embed = create_embed(
+            description = f'**Staff Member:** {user.mention}\n**Used Command:** `banlist-delete` for case {case}'
+        )
+
+        if failed:
+            embed.description += '\n\n❌ However, an error occurred!'
+
+        await banlist_log.send(embed = embed)
+    
+    @staticmethod
+    async def _log_banlist_lookup(guild: Guild, banlist_log_id: int, user: User, xbox: str, failed: bool = False):
+        banlist_log = guild.get_channel(banlist_log_id)
+
+        embed = create_embed(
+            description = f'**Staff Member:** {user.mention}\n**Used Command:** `/lookup` for the xbox account: {xbox}'
+        )
+
+        if failed:
+            embed.description += '\n\n❌ However, an error occurred!'
+
+        await banlist_log.send(embed = embed)
+
+
+
+class BanList(Cog):
+    def __init__(self, bot: 'MyBot'):
+        self.bot = bot
+        self.state = bot.state
+        self.config = bot.config
+
+    
+
+    async def _get_friends_check_embed_info(self, xbox: str) -> Tuple[str, int, Literal['clean', 'banned', 'error', 'other']]:
+        friends_check_status = ''
+
+        try:
+            xbox_profile: ProfileResponse = await self.state.xbox_wrapper.get_xbox_profile_by_gamertag(xbox_gamertag = xbox)
+        
+        except XboxApiWrapperError as e:
+            description = e.message
+            colour = 0xf8d146
+            friends_check_status = 'error'
+
+            return description, colour, friends_check_status
+        
+        
+        xuid = xbox_profile.profile_users[0].id
+        
+        try:
+            xbox_friends: PeopleResponse = await self.state.xbox_wrapper.get_xbox_friends_by_xuid(xuid = xuid)
+        
+        except XboxApiWrapperError as e:
+            description = e.message
+            colour = 0xf8d146
+            friends_check_status = 'error'
+
+            return description, colour, friends_check_status
+        
+    
+        if not xbox_friends or not xbox_friends.people:
+            description = f'⚠️ {xbox} has no xbox friends.'
+            colour = 0xff0000
+            friends_check_status = 'other'
+
+            return description, colour, friends_check_status
+        
+                     
+        friends_gamertags = [friend.modern_gamertag for friend in xbox_friends.people]
+
+        friend_ban_cases = check_friends_by_xbox_name(friends_gamertags = friends_gamertags)
+
+        if not friend_ban_cases:
+            description = f'✅ {xbox} has no banned xbox friends'
+            colour = 0x00ff00
+            friends_check_status = 'clean'
+
+            return description, colour, friends_check_status
+
+
+        grouped_banned_friends = {}
+
+        for case in friend_ban_cases:
+            xbox_gamertag = case[2]
+            case_id = case[4]
+
+            grouped_banned_friends.setdefault(xbox_gamertag, []).append(case_id)
+        
+        description, colour = self._create_banned_friends_embed_attrs(grouped_banned_friends = grouped_banned_friends, xbox = xbox)
+        friends_check_status = 'banned'
+
+        return description, colour, friends_check_status
+    
+    def _create_banned_user_embed(self, user: User, xbox:str, discord_ban_cases, xbox_ban_cases) -> Tuple[Embed, bool]:
+        banned = False
+
+        description = ''
+        
+        if not discord_ban_cases:
+            description += f'✅ {user.mention} is not on the banlist\n'
+        
         else:
-            await interaction.followup.send(embeds=Embeds)
-        Banlist_Log_Channel=interaction.guild.get_channel(Configuration.Banlist_Logs[Functions.Configuration_Position(interaction.guild.id)])
-        await Banlist_Log_Channel.send(embed=discord.Embed(description=f"**Staff Member:** {interaction.user.mention}\n**Used Command:** `user-check` for:\n{Arguments}"))
-        if user is not None and xbox is not None and Colour==0x02ff00:
-            if Friends_Check:
-                try:
-                    if Staff_Verified_Role not in user.roles:
-                        await user.add_roles(Staff_Verified_Role)
-                except:
-                    return
-            else:
-                View=Friends_Check_Confirm()
-                await interaction.followup.send(view=View,ephemeral=True)
-                await View.wait()
-                try:
-                    if View.value and Staff_Verified_Role not in user.roles:
-                        await user.add_roles(Staff_Verified_Role)
-                    elif not View.value and Staff_Verified_Role in user.roles:
-                        await user.remove_roles(Staff_Verified_Role)
-                except:
-                    return
-        elif user is not None and xbox is not None and Colour==0xff0000 and Staff_Verified_Role in user.roles:
-            await user.remove_roles(Staff_Verified_Role)
-    @app_commands.command(name="banlist-case",description="Staff Only | Shows the information about a specific ban case")
-    @app_commands.checks.has_any_role('Staff')
-    async def case(self,interaction:discord.Interaction,case:int):
-        DataBase=self.DataBase_Connection()
-        Cursor=DataBase.cursor()
-        Cursor.execute(f"SELECT * FROM banlist WHERE ban_id={case}")
-        Ban_case=Cursor.fetchall()
-        if Ban_case==[]:
-            await interaction.response.send_message(f"❌ There is no ban case with id {case}",ephemeral=True)
+            banned = True
+
+            description += f'❌ {user.mention} is on the banlist\n'
+            
+            for ban in discord_ban_cases:
+                case_id = ban[4]
+
+                description += f'Case Id: {case_id}\n'
+
+        if not xbox_ban_cases:
+            description += f'\n✅ {xbox} is not on the banlist'
+
+        else:
+            banned = True
+
+            description += f'\n❌ {xbox} is on the banlist\n'
+
+            for case in xbox_ban_cases:
+                case_id = case[4]
+
+                description += f'Case Id: {case_id}\n'
+
+        if banned:
+            colour = 0xff0000
+        
+        else:
+            colour = 0x00ff00
+        
+        check_embed = create_embed(
+            title = 'Banlist Check',
+            description = f'{description}',
+            colour = colour
+        )
+
+        return check_embed, banned
+    
+    def _create_banned_friends_embed_attrs(self, grouped_banned_friends: Dict, xbox: str) -> Tuple[str, int]:
+        description = f'{len(grouped_banned_friends)} of {xbox}\'s friends are on the banlist\n'
+
+        for xbox_gamertag, case_ids in grouped_banned_friends.items():
+            description += f'❌ {xbox_gamertag} is on the banlist\n'
+
+            for case_id in case_ids:
+                description += f'Case Id: {case_id}\n'
+        
+        colour = 0xff0000
+
+        return description, colour
+
+
+    @command(name = 'user-check', description = 'Staff Only | Checks a user against the banlist')
+    @app_command_requires_role_of_perm_tiers(['tier_1'])
+    async def check(self, interaction: Interaction, user: Member = None, xbox: str = None):
+        if not user and not xbox:
+            await interaction.response.send_message('❌ You need to provide at least one account: xbox or discord')
             return
-        Data=[]
-        for Ban in Ban_case:
-            for i in Ban:
-                Data.append(i)
-        await interaction.response.send_message(embed=discord.Embed(title=f"Ban Id {case}",description=f"**Discord Name:** {Data[0]}\n**Discord Id:** {Data[1]}\n**Xbox:** {Data[2]}\n**Reason:** {Data[3]}",colour=0xff0000),ephemeral=True)
-        Cursor.close()
-        DataBase.close()
-        Banlist_Log_Channel=interaction.guild.get_channel(Configuration.Banlist_Logs[Functions.Configuration_Position(interaction.guild.id)])
-        await Banlist_Log_Channel.send(embed=discord.Embed(description=f"**Staff Member:** {interaction.user.mention}\n**Used Command:** `banlist-case` for case {case}"))
-    @app_commands.command(name="banlist-add",description="Staff Only | Adds a ban entry to the banlist")
-    @app_commands.checks.has_any_role('Admin','Moderator','Senior Officer','Development Lead')
-    async def add(self,interaction:discord.Interaction,user:discord.User=None,xbox:str=None,reason:str=None):
-        Arguments=""
-        if user!=None:
-            Arguments+=f"Discord User: {user.mention}\n"
-            User_Name=user.name
-            User_Id=user.id
+        
+        await interaction.response.defer(ephemeral = True)
+
+        args = f'Discord User: {user.mention}\n' if user else ''
+        args += f'Xbox Gamertag: {xbox}' if xbox else ''
+
+        ban_cases: Dict = check_if_banned(discord_id = user.id, xbox_gamertag = xbox)
+        discord_ban_cases = ban_cases.get('discord', None)
+        xbox_ban_cases = ban_cases.get('xbox', None)
+
+        check_embed, banned = self._create_banned_user_embed(user = user, xbox = xbox, discord_ban_cases = discord_ban_cases, xbox_ban_cases = xbox_ban_cases)
+    
+        embeds = []
+        embeds.append(check_embed)
+
+        if xbox:
+            description, colour, friends_check_status = await self._get_friends_check_embed_info(xbox = xbox)
+
+            friends_check_embed = create_embed(
+                title = f'Xbox friends Check',
+                description = description,
+                colour = colour
+            )
+            embeds.append(friends_check_embed)
+
+
+        await interaction.followup.send(embeds = embeds)
+
+
+        staff_verified_role = interaction.guild.get_role(self.config.roles.staff_verified)
+
+        if not banned and friends_check_status == 'clean':
+            
+            if staff_verified_role not in user.roles:
+                await user.add_roles(staff_verified_role)
+                    
+        elif not banned and friends_check_status != 'banned':
+            view = VerifyView()
+
+            await interaction.followup.send(view = view, ephemeral = True)
+            await view.wait()
+
+            if view.verified and staff_verified_role not in user.roles:
+                await user.add_roles(staff_verified_role)
+
+            elif not view.verified and staff_verified_role in user.roles:
+                await user.remove_roles(staff_verified_role)
+                
+        elif banned and staff_verified_role in user.roles:
+            await user.remove_roles(staff_verified_role)
+
+        
+        await BanlistLogger._log_banlist_check(
+            guild = interaction.guild,
+            banlist_log_id = self.config.channels.logs.banlist,
+            user = interaction.user,
+            args = args
+        )
+    
+    
+    @command(name = 'banlist-case', description = 'Staff Only | Shows the information about a specific ban case')
+    @app_command_requires_role_of_perm_tiers(['tier_1'])
+    async def case(self, interaction: Interaction, case: int):
+        failed = False
+
+        try:
+            ban_case = get_bans_by_case_number(case)
+        
+        except DatabaseConnectionFail as e:
+            await interaction.response.send_message(e.message, ephemeral = True)
+            failed = True
+        
         else:
-            User_Name="Not Recorded"
-            User_Id="Not Recorded"
-        if xbox!=None:
-            Arguments+=f"Xbox Gamertag: {xbox}"
-            Xbox_Add=xbox
-        else:
-            xbox="Not Recorded"
-            Xbox_Add="Not Recorded"
-        if Arguments=="":
-            await interaction.followup.send("❌ You need to provide at least one account: xbox or discord")
-            return
-        DataBase=self.DataBase_Connection()
-        Cursor=DataBase.cursor()
-        Cursor.execute("INSERT INTO banlist(discord_name,discord_id,xbox_name,reason) VALUES (%s,%s,%s,%s)",(User_Name,User_Id,Xbox_Add,reason))
-        Cursor.close()
-        DataBase.commit()
-        DataBase.close()
-        await interaction.response.send_message(f"✅ Success",ephemeral=True)
-        Banlist_Log_Channel=interaction.guild.get_channel(Configuration.Banlist_Logs[Functions.Configuration_Position(interaction.guild.id)])
-        await Banlist_Log_Channel.send(embed=discord.Embed(description=f"**Staff Member:** {interaction.user.mention}\n**Used Command:** `banlist-add` for:\n{Arguments}"))
-    @app_commands.command(name="banlist-delete",description="Staff Only | Deletes a ban from the banlist")
-    @app_commands.checks.has_any_role('Admin','Moderator','Senior Officer','Development Lead')
-    async def delete(self,interaction:discord.Interaction,case:int):
-        DataBase=self.DataBase_Connection()
-        Cursor=DataBase.cursor()
-        Cursor.execute(f"DELETE FROM banlist WHERE ban_id={case}")
-        Cursor.close()
-        DataBase.commit()
-        DataBase.close()
-        await interaction.response.send_message(f"✅ Success",ephemeral=True)
-        Banlist_Log_Channel=interaction.guild.get_channel(Configuration.Banlist_Logs[Functions.Configuration_Position(interaction.guild.id)])
-        await Banlist_Log_Channel.send(embed=discord.Embed(description=f"**Staff Member:** {interaction.user.mention}\n**Used Command:** `banlist-delete` for case {case}"))
-    @app_commands.command(name="lookup",description="Staff Only | Shows deatiled information about a xbox account")
-    @app_commands.checks.has_any_role("Staff")
-    async def lookup(self,interaction:discord.Interaction,xbox:str):
-        async with SignedSession() as Session:
-            Authentication_Manager=AuthenticationManager(Session,Client_Id,Client_Secret,"")
-            with open("tokens.json") as Token_File:
-                Tokens=Token_File.read()
-            Authentication_Manager.oauth=OAuth2TokenResponse.parse_raw(Tokens)
-            try:
-                await Authentication_Manager.refresh_tokens()
-            except:
-                print(f"""Could not refresh tokens\nYou might have to delete the tokens file and re-authenticate if refresh token is expired""")
+            if not ban_case:
+                await interaction.response.send_message(f'❌ There is no ban case with id {case}', ephemeral = True)
                 return
-            with open("Cursed_Obsidian/tokens.json",mode="w") as Token_File:
-                Token_File.write(Authentication_Manager.oauth.json())
-            Xbox_Client=XboxLiveClient(Authentication_Manager)
-            try:
-                Xbox_User=await Xbox_Client.profile.get_profile_by_gamertag(xbox)
-                Xuid=Xbox_User.profile_users[0].id
-                GameScore=Xbox_User.profile_users[0].settings[7].value
-                Profile_Picture=Xbox_User.profile_users[0].settings[8].value
-                Reputation=Xbox_User.profile_users[0].settings[11].value
-                Embed=(discord.Embed(description=f"Xbox Id: {Xuid}\nGameScore: {GameScore}\nReputation: {Reputation}").set_author(name=xbox,icon_url=Profile_Picture))
-            except:
-                Embed=(discord.Embed(description=f"❌ {xbox} is not a valid xbox gamertag or they have their profile private.",color=0x00F3FF))
-        await interaction.response.send_message(embed=Embed,ephemeral=True)
-        Banlist_Log_Channel=interaction.guild.get_channel(Configuration.Banlist_Logs[Functions.Configuration_Position(interaction.guild.id)])
-        await Banlist_Log_Channel.send(embed=discord.Embed(description=f"**Staff Member:** {interaction.user.mention}\n**Used Command:** `/lookup` for the xbox account: {xbox}"))
-    async def cog_app_command_error(self,interaction:discord.Interaction,error):
-        if isinstance(error,app_commands.errors.MissingAnyRole):
-            await interaction.response.send_message("❌ You are missing a required role to run this command!",ephemeral=True)
+            
+            discord_name, discord_id, xbox, reason, *_ = ban_case
+            embed = create_embed(
+                title = f'ban Id {case}',
+                description = f'**Discord Name:** {discord_name}\n**Discord Id:** {discord_id}\n**Xbox:** {xbox}\n**Reason:** {reason}',
+                colour = 0xff0000
+            )
+
+            await interaction.response.send_message(embed = embed, ephemeral = True)
+
+        finally:
+            await BanlistLogger._log_banlist_case(
+                guild = interaction.guild,
+                banlist_log_id = self.config.channels.logs.banlist,
+                user = interaction.user,
+                case = case,
+                failed = failed
+            )
+    
+    
+    @command(name = 'banlist-add', description = 'Staff Only | Adds a ban entry to the banlist')
+    @app_command_requires_role_of_perm_tiers(['tier_3','tier_4'])
+    async def add(self, interaction: Interaction, member: Member = None, xbox: str = None, reason: str = None):
+        failed = False
+
+        if not member and not xbox:
+            await interaction.response.send_message('❌ You need to provide at least one account: xbox or discord')
+            return
+        
+        args = f'Discord User: {member.mention}\n' if member else ''
+        args += f'Xbox Gamertag: {xbox}' if xbox else ''
+
+        member_name = member.name if member else 'Not Recorded'
+        member_id = member.id if member else 'Not Recorded'
+
+        xbox_name = xbox if xbox else 'Not Recorded'
+
+        try:
+            add_ban(
+                member_name = member_name,
+                member_id = member_id,
+                xbox_name = xbox_name,
+                reason = reason
+            )
+
+        except DatabaseConnectionFail as e:
+            await interaction.response.send_message(e.message, ephemeral = True)
+            failed = True
+        
+        else:
+            await interaction.response.send_message(f'✅ Success', ephemeral = True)
+        
+        finally:
+            await BanlistLogger._log_banlist_add(
+            guild = interaction.guild,
+            banlist_log_id = self.config.channels.logs.banlist,
+            user = interaction.user,
+            args = args,
+            failed = failed
+        )
+    
+
+    @command(name = 'banlist-delete', description = 'Staff Only | Deletes a ban from the banlist')
+    @app_command_requires_role_of_perm_tiers(['tier_3','tier_4'])
+    async def delete(self, interaction: Interaction, case: int):
+        failed = False
+        
+        try:
+            delete_ban(
+                case = case
+            )
+        
+        except DatabaseConnectionFail as e:
+            await interaction.response.send_message(e.message, ephemeral = True)
+            failed = True
+        
+        else:
+            await interaction.response.send_message(f'✅ Success', ephemeral = True)
+
+        finally:
+            await BanlistLogger._log_banlist_delete(
+                guild = interaction.guild,
+                banlist_log_id = self.config.channels.logs.banlist,
+                user = interaction.user,
+                case = case,
+                failed = failed
+            )
+    
+
+    @command(name = 'lookup', description = 'Staff Only | Shows deatiled information about a xbox account')
+    @app_command_requires_role_of_perm_tiers(['tier_1'])
+    async def lookup(self, interaction: Interaction, xbox: str):
+        failed = False
+
+        try:
+            xbox_profile: ProfileResponse = await self.state.xbox_wrapper.get_xbox_profile_by_gamertag(xbox_gamertag = xbox)
+        
+        except XboxApiWrapperError as e:
+            await interaction.response.send_message(e.message, ephemeral = True)
+            failed = True
+        
+        else:
+            xbox_user = xbox_profile.profile_users[0]
+
+            xuid = xbox_user.id
+            gamescore = xbox_user.settings[7].value
+            profile_picture = xbox_user.settings[8].value
+            reputation = xbox_user.settings[11].value
+            
+            embed = create_embed(
+                description = f'Xbox Id: {xuid}\nGameScore: {gamescore}\nReputation: {reputation}'
+            )
+            embed = set_embed_attr(
+                embed = embed,
+                author = {
+                    'name': xbox,
+                    'icon': profile_picture
+                }
+            )            
+    
+            await interaction.response.send_message(embed = embed, ephemeral = True)
+
+        finally:
+            await BanlistLogger._log_banlist_lookup(
+                guild = interaction.guild,
+                banlist_log_id = self.config.channels.logs.banlist,
+                user = interaction.user,
+                xbox = xbox,
+                failed = failed
+            )
+    
+
+    
+    async def cog_app_command_error(self, interaction: Interaction, error):
+        if isinstance(error, errors.MissingAnyRole):
+            await interaction.response.send_message('❌ You are missing a required role to run this command!', ephemeral = True)
         else:
             print(error)
-async def setup(bot:commands.Bot):
-    await bot.add_cog(BanList(bot),guilds=[discord.Object(id=933896845644689449),discord.Object(id=1106689170585432076),discord.Object(id=1090782551599231067)])
+
+
+
+async def setup(bot: 'MyBot'):
+    await bot.add_cog(BanList(bot))

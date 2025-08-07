@@ -1,0 +1,71 @@
+{
+  "other": {
+    "guild_id": 0,
+    "banlist_toggle": false
+  },
+  "roles": {
+    "member": 0,
+    "staff": 0,
+    "admin": 0,
+    "senior_mod": 0,
+    "mod": 0,
+    "officer": 0,
+    "helper": 0,
+    "in_queue": 0,
+    "on_duty": 0,
+    "staff_verified": 0,
+    "xbox_linked": 0
+  },
+  "perm_roles": {
+    "tier_0": [
+      "member"
+    ],
+    "tier_1": [
+      "staff"
+    ],
+    "tier_2": [
+      "officer"
+    ],
+    "tier_3": [
+      "mod",
+      "senior_mod"
+    ],
+    "tier_4": [
+      "admin"
+    ]
+  },
+  "categories": {
+    "logs": 0,
+    "fleet_staff": 0,
+    "fleet_queue": 0
+  },
+  "channels": {
+    "logs": {
+      "bot": 0,
+      "queue": 0,
+      "banlist": 0
+    },
+    "fleet_staff": {
+      "queue_manager": 0,
+      "spiking_queue": 0,
+      "on_duty_chat": 0
+    },
+    "fleet_queue": {
+      "queue": 0,
+      "spiking_vc": 0,
+      "waiting_room": 0
+    }
+  },
+  "embeds": {
+    "staff_queue_controls": 0,
+    "duty_switch_panel": 0,
+    "active_ships_panel": 0,
+    "queue_panel": 0,
+    "spiking_vc_control": 0,
+    "spiking_queue_panel": 0
+  },
+  "preset_messages": {
+    "queue_title": "__**Cursed Obsidian Queue:**__",
+    "queue_description": "To be processed onto a ship, you will need to be verified by a staff member. In order to be verified, you are required to have the xbox_linked_role role. If you are unsure how to get this role, please watch our [short tutorial](https://youtu.be/tMbgk0dLMK8) on it.\n\nTo join the queue, click the **Join Queue/Update Queue** button & type your desired activity.\n\n**MEMBERS CURRENTLY IN QUEUE:**"
+  }
+}
