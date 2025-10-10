@@ -1,4 +1,4 @@
-# Cursed_Obsidian
+# Cursed Obsidian
 
 **Cursed Obsidian Bot** is a specialised Discord bot built for the [Cursed Obsidian](https://discord.gg/57BurZrTYH) server, which focuses on the game *Sea of Thieves*. Designed to manage large-scale server coordination, player queues, in-server moderation, and security checks, the bot automates nearly every aspect of an otherwise intensive manual process — from session maintenance to queue processing, and even Xbox-integrated ban enforcement using the Xbox Web API.
 
