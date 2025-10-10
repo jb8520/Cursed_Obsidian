@@ -83,13 +83,13 @@ class MyBot(commands.Bot):
              print(f'⚠️ No extensions found in Cogs')
         
         else:
-            print(f'✅ Successfully loaded {len(loaded_cogs)} cogs: {', '.join(loaded_cogs)}')
+            print(f'✅ Successfully loaded {len(loaded_cogs)} cogs: {", ".join(loaded_cogs)}')
         
         if not loaded_views:
              print(f'⚠️ No extensions found in Views')
         
         else:
-            print(f'✅ Successfully loaded {len(loaded_views)} views: {', '.join(loaded_views)}')    
+            print(f'✅ Successfully loaded {len(loaded_views)} views: {", ".join(loaded_views)}')    
 
 
     async def on_ready(self):
